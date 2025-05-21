@@ -21,15 +21,27 @@ const EmptyState = () => (
   </div>
 );
 
-const LoadingState = () => (
-  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-90 rounded-lg transition-all duration-300">
-    <div className="relative">
-      <Skeleton className="w-64 h-64 rounded-lg" />
-      <Loader2 className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 text-blue-500 animate-spin" />
+const LoadingState = () => {
+  const [dots, setDots] = useState('');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '' : prev + '.');
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[2px] rounded-lg transition-all duration-300">
+      <div className="bg-white/90 px-4 py-2 rounded-full shadow-sm flex items-center gap-3">
+        <div className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+        <span className="text-sm text-gray-700 font-medium min-w-[7rem]">
+          Generating{dots}
+        </span>
+      </div>
     </div>
-    <p className="mt-4 text-gray-600 font-medium animate-pulse">Generating your shader...</p>
-  </div>
-);
+  );
+};
 
 export function Shader() {
   const [prompt, setPrompt] = useState('');
@@ -48,7 +60,8 @@ export function Shader() {
     setError(null);
     setShaderCode(null);
     try {
-      const response = await fetch('http://localhost:4000/api/generate-shader', {
+      const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${BACKEND_URL}/api/generate-shader`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
