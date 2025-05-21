@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WASM Calculator Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #output div {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .pass { background: #e6ffe6; color: #006600; }
+        .fail { background: #ffe6e6; color: #660000; }
+        .info { background: #e6f3ff; color: #003366; }
+    </style>
+</head>
+<body>
+    <h1>WASM Calculator Test</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        const output = document.getElementById('output');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.textContent = message;
+            div.className = type;
+            output.appendChild(div);
+        }
+
+        function assertClose(actual, expected, tolerance = 1e-10) {
+            return Math.abs(actual - expected) < tolerance;
+        }
+
+        async function runTests() {
+            try {
+                log('Importing WASM module...', 'info');
+                const wasm = await import('../rust-calc/pkg/rust_calc.js');
+                log('WASM module imported: ' + Object.keys(wasm).join(', '), 'info');
+
+                log('Initializing WASM module...', 'info');
+                await wasm.default();
+                log('WASM module initialized', 'info');
+
+                log('Running tests...', 'info');
+                const testCases = [
+                    // Basic arithmetic
+                    ['2 + 3', 5],
+                    ['10 - 4', 6],
+                    ['3 * 4', 12],
+                    ['15 / 3', 5],
+                    
+                    // Complex expressions
+                    ['2 + 3 * 4', 14],
+                    ['(2 + 3) * 4', 20],
+                    ['10 / (2 + 3)', 2],
+                    
+                    // Mathematical functions
+                    ['sin(0)', 0],
+                    ['cos(0)', 1],
+                    ['sqrt(16)', 4],
+                    ['2^3', 8],
+                    
+                    // Negative numbers
+                    ['-5 + 3', -2],
+                    ['5 * -2', -10],
+                    
+                    // Decimals
+                    ['3.14 * 2', 6.28],
+                    ['10 / 4', 2.5]
+                ];
+
+                let passed = 0;
+                let failed = 0;
+
+                for (const [expression, expected] of testCases) {
+                    try {
+                        const result = await wasm.calculate(expression);
+                        const success = assertClose(result, expected);
+                        log(
+                            `${expression} = ${result} (Expected: ${expected})`,
+                            success ? 'pass' : 'fail'
+                        );
+                        if (success) passed++; else failed++;
+                    } catch (error) {
+                        log(`Error evaluating "${expression}": ${error}`, 'fail');
+                        failed++;
+                    }
+                }
+
+                log(`Test Summary: ${passed} passed, ${failed} failed`, passed === testCases.length ? 'pass' : 'fail');
+
+                // Test error cases
+                log('\nTesting error cases...', 'info');
+                const errorCases = [
+                    'invalid',
+                    '2 +',
+                    '/ 2',
+                    '2 * * 3'
+                ];
+
+                for (const expression of errorCases) {
+                    try {
+                        await wasm.calculate(expression);
+                        log(`Expected error for "${expression}" but got success`, 'fail');
+                        failed++;
+                    } catch (error) {
+                        log(`Successfully caught error for "${expression}": ${error}`, 'pass');
+                        passed++;
+                    }
+                }
+
+                log(`Final Test Summary: ${passed} passed, ${failed} failed`, failed === 0 ? 'pass' : 'fail');
+
+            } catch (error) {
+                log('Error: ' + error.message, 'fail');
+                console.error(error);
+            }
+        }
+
+        runTests();
+    </script>
+</body>
+</html> 
